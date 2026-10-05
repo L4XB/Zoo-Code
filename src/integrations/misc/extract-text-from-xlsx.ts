@@ -4,8 +4,9 @@ const ROW_LIMIT = 50000
 
 /**
  * Excel stores a date or a time as a day count shown through the cell's number format, and
- * ExcelJS hands it over as a UTC Date. A format with no day or year outside quoted text and
- * [...] sections is a time of day or, with [h], [m] or [s], an elapsed duration. Those count
+ * ExcelJS hands it over as a UTC Date. Outside quoted text, escaped characters and [...] sections,
+ * a format with a day, a year, or a month with no hour or second beside it (mmm) shows a date.
+ * Any other format is a time of day or, with [h], [m] or [s], an elapsed duration. Those count
  * from day 0 (1899-12-30, or 1904-01-01 in a 1904 workbook), so they must not read as a date.
  */
 function formatDate(date: Date, cell: ExcelJS.Cell): string {
@@ -13,15 +14,26 @@ function formatDate(date: Date, cell: ExcelJS.Cell): string {
 	const time = Math.round(date.getTime() / 1000) * 1000
 	const iso = new Date(time).toISOString()
 	const numFmt = cell.numFmt ?? ""
-	if (!numFmt || /[dy]/i.test(numFmt.replace(/"[^"]*"|\[[^\]]*\]/g, ""))) {
+	const elapsed = /\[(h+|m+|s+)\]/i.exec(numFmt)
+	const tokens = numFmt.replace(/"[^"]*"|\\.|\[[^\]]*\]/g, "")
+	const isDate = !numFmt || /[dy]/i.test(tokens) || (/m/i.test(tokens) && !/[hs]/i.test(tokens))
+	if (!elapsed && isDate) {
 		return iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso.slice(0, 19).replace("T", " ")
 	}
-	if (!/\[[hms]+\]/i.test(numFmt)) {
+	if (!elapsed) {
 		return iso.slice(11, 19)
 	}
 	const epoch = cell.worksheet.workbook.properties.date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30)
 	const seconds = (time - epoch) / 1000
 	const pad = (n: number) => String(n).padStart(2, "0")
+	// Elapsed time counts in the unit of its bracket: [mm]:ss of 25 hours reads 1500:00
+	const unit = elapsed[1][0].toLowerCase()
+	if (unit === "s") {
+		return String(seconds)
+	}
+	if (unit === "m") {
+		return `${Math.floor(seconds / 60)}:${pad(seconds % 60)}`
+	}
 	return `${Math.floor(seconds / 3600)}:${pad(Math.floor(seconds / 60) % 60)}:${pad(seconds % 60)}`
 }
 
@@ -33,11 +45,13 @@ function formatCellValue(cell: ExcelJS.Cell): string {
 
 	// Handle formulas - read the calculated result like a plain value. The cells of a formula
 	// filled down or across hold { sharedFormula, result }; cell.formula gives their formula.
+	// The result comes from cell.result: ExcelJS leaves a cached 0 or false out of cell.value.
 	if (typeof value === "object" && ("formula" in value || "sharedFormula" in value)) {
-		if (value.result === undefined || value.result === null) {
+		const result = cell.result
+		if (result === undefined || result === null) {
 			return `[Formula: ${cell.formula}]`
 		}
-		value = value.result
+		value = result
 	}
 
 	// Handle error values (#DIV/0!, #N/A, etc.)

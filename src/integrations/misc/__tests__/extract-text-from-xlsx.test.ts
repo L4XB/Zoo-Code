@@ -188,6 +188,20 @@ describe("extractTextFromXLSX", () => {
 			expect(result).toBe("--- Sheet: Sheet1 ---\n2\n4\n[Formula: B3*2]")
 		})
 
+		it("should read a cached 0 or false formula result, not the formula", async () => {
+			const workbook = new ExcelJS.Workbook()
+			const worksheet = workbook.addWorksheet("Sheet1")
+
+			// ExcelJS keeps a falsy cached result in cell.result but leaves it out of cell.value
+			worksheet.getCell("A1").value = { formula: "B1*2", result: 0 }
+			worksheet.getCell("A2").value = { sharedFormula: "A1", result: 0 }
+			worksheet.getCell("A3").value = { formula: "B1>1", result: false }
+
+			const result = await extractTextFromXLSX(workbook)
+
+			expect(result).toBe("--- Sheet: Sheet1 ---\n0\n0\nfalse")
+		})
+
 		it("should read formula errors and dates like plain values", async () => {
 			const workbook = new ExcelJS.Workbook()
 			const worksheet = workbook.addWorksheet("Sheet1")
@@ -215,7 +229,10 @@ describe("extractTextFromXLSX", () => {
 				["1899-12-30T12:00:00.000Z", "[$-x-systime]h:mm:ss AM/PM", "12:00:00"],
 				["1899-12-30T18:00:00.000Z", 'h:mm" daily"', "18:00:00"],
 				["1899-12-31T12:00:00.000Z", "[h]:mm:ss", "36:00:00"],
-				["1899-12-31T01:00:00.000Z", "[mm]:ss", "25:00:00"],
+				["1899-12-31T01:00:30.000Z", "[mm]:ss", "1500:30"],
+				["1899-12-30T01:30:00.000Z", "[ss]", "5400"],
+				["2024-09-30T00:00:00.000Z", "mmmm", "2024-09-30"],
+				["1899-12-30T18:00:00.000Z", "h:mm\\ \\d\\a\\i\\l\\y", "18:00:00"],
 			]
 			cells.forEach(([date, numFmt], index) => {
 				const cell = worksheet.getRow(1).getCell(index + 1)
