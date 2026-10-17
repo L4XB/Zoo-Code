@@ -50,7 +50,7 @@
 		"fzf": "^0.5.2",
 		"hast-util-to-jsx-runtime": "^2.3.6",
 		"i18next": "^25.0.0",
-		"katex": "^0.16.11",
+		"katex": "^0.18.2",
 		"lru-cache": "^11.1.0",
 		"lucide-react": "^1.18.0",
 		"mermaid": "^11.4.1",
@@ -104,7 +104,7 @@
 		"@vitest/ui": "4.1.9",
 		"babel-plugin-react-compiler": "1.0.0",
 		"jsdom": "26.1.0",
-		"monocart-reporter": "^2.9.20",
+		"monocart-reporter": "2.12.2",
 		"vite": "8.1.0",
 		"vitest": "4.1.11"
 	}
