@@ -215,7 +215,7 @@ describe("formatWorkbook", () => {
 			expect(result).toContain("[Formula: SUM(B1:B10)]") // Formula without result
 		})
 
-		it("should read every cell of a filled-down formula", async () => {
+		it("should read every cell of a filled-down formula", () => {
 			const workbook = new ExcelJS.Workbook()
 			const worksheet = workbook.addWorksheet("Sheet1")
 
@@ -224,12 +224,12 @@ describe("formatWorkbook", () => {
 			worksheet.getCell("A2").value = { sharedFormula: "A1", result: 4 }
 			worksheet.getCell("A3").value = { sharedFormula: "A1" }
 
-			const result = await extractTextFromXLSX(workbook)
+			const result = formatWorkbook(workbook)
 
 			expect(result).toBe("--- Sheet: Sheet1 ---\n2\n4\n[Formula: B3*2]")
 		})
 
-		it("should read a cached 0 or false formula result, not the formula", async () => {
+		it("should read a cached 0 or false formula result, not the formula", () => {
 			const workbook = new ExcelJS.Workbook()
 			const worksheet = workbook.addWorksheet("Sheet1")
 
@@ -238,12 +238,12 @@ describe("formatWorkbook", () => {
 			worksheet.getCell("A2").value = { sharedFormula: "A1", result: 0 }
 			worksheet.getCell("A3").value = { formula: "B1>1", result: false }
 
-			const result = await extractTextFromXLSX(workbook)
+			const result = formatWorkbook(workbook)
 
 			expect(result).toBe("--- Sheet: Sheet1 ---\n0\n0\nfalse")
 		})
 
-		it("should read every cell of a merged formula through the top-left cell", async () => {
+		it("should read every cell of a merged formula through the top-left cell", () => {
 			const workbook = new ExcelJS.Workbook()
 			const worksheet = workbook.addWorksheet("Sheet1")
 
@@ -256,12 +256,12 @@ describe("formatWorkbook", () => {
 			worksheet.getCell("A3").numFmt = "yyyy-mm-dd"
 			worksheet.mergeCells("A3:B3")
 
-			const result = await extractTextFromXLSX(workbook)
+			const result = formatWorkbook(workbook)
 
 			expect(result).toBe("--- Sheet: Sheet1 ---\n4\t4\n0\t0\n2024-10-30\t2024-10-30")
 		})
 
-		it("should read formula errors and dates like plain values", async () => {
+		it("should read formula errors and dates like plain values", () => {
 			const workbook = new ExcelJS.Workbook()
 			const worksheet = workbook.addWorksheet("Sheet1")
 
@@ -269,12 +269,12 @@ describe("formatWorkbook", () => {
 			worksheet.getCell("B1").value = { formula: "A2+30", result: new Date("2024-10-30T00:00:00.000Z") }
 			worksheet.getCell("B1").numFmt = "yyyy-mm-dd"
 
-			const result = await extractTextFromXLSX(workbook)
+			const result = formatWorkbook(workbook)
 
 			expect(result).toBe("--- Sheet: Sheet1 ---\n[Error: #DIV/0!]\t2024-10-30")
 		})
 
-		it("should keep the time of dates and read times of day and durations", async () => {
+		it("should keep the time of dates and read times of day and durations", () => {
 			const workbook = new ExcelJS.Workbook()
 			const worksheet = workbook.addWorksheet("Sheet1")
 
@@ -301,12 +301,12 @@ describe("formatWorkbook", () => {
 				cell.numFmt = numFmt
 			})
 
-			const result = await extractTextFromXLSX(workbook)
+			const result = formatWorkbook(workbook)
 
 			expect(result).toBe(`--- Sheet: Sheet1 ---\n${cells.map(([, , text]) => text).join("\t")}`)
 		})
 
-		it("should count durations from 1904-01-01 in a 1904 workbook", async () => {
+		it("should count durations from 1904-01-01 in a 1904 workbook", () => {
 			const workbook = new ExcelJS.Workbook()
 			workbook.properties.date1904 = true
 			const worksheet = workbook.addWorksheet("Sheet1")
@@ -314,7 +314,7 @@ describe("formatWorkbook", () => {
 			worksheet.getCell("A1").value = new Date("1904-01-02T12:00:00.000Z")
 			worksheet.getCell("A1").numFmt = "[h]:mm"
 
-			const result = await extractTextFromXLSX(workbook)
+			const result = formatWorkbook(workbook)
 
 			expect(result).toBe("--- Sheet: Sheet1 ---\n36:00")
 		})
