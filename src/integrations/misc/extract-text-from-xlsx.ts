@@ -26,18 +26,23 @@ function formatDate(date: Date, cell: ExcelJS.Cell): string {
 	const epoch = cell.worksheet.workbook.properties.date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30)
 	const seconds = (time - epoch) / 1000
 	const pad = (n: number) => String(n).padStart(2, "0")
-	// Elapsed time counts in the unit of its bracket: [mm]:ss of 25 hours reads 1500:00
+	// Elapsed time counts in the unit of its bracket: [mm]:ss of 25 hours reads 1500:00. Seconds
+	// show only when the format has them: [h]:mm of 36 hours reads 36:00
 	const unit = elapsed[1][0].toLowerCase()
+	const secondsShown = /s/i.test(tokens) ? `:${pad(seconds % 60)}` : ""
 	if (unit === "s") {
 		return String(seconds)
 	}
 	if (unit === "m") {
-		return `${Math.floor(seconds / 60)}:${pad(seconds % 60)}`
+		return `${Math.floor(seconds / 60)}${secondsShown}`
 	}
-	return `${Math.floor(seconds / 3600)}:${pad(Math.floor(seconds / 60) % 60)}:${pad(seconds % 60)}`
+	return `${Math.floor(seconds / 3600)}:${pad(Math.floor(seconds / 60) % 60)}${secondsShown}`
 }
 
-function formatCellValue(cell: ExcelJS.Cell): string {
+function formatCellValue(mergedOrCell: ExcelJS.Cell): string {
+	// The other cells of a merged range return the top-left cell's value but not its formula
+	// result, so the whole range is read through that cell
+	const cell = mergedOrCell.type === ExcelJS.ValueType.Merge ? mergedOrCell.master : mergedOrCell
 	let value = cell.value
 	if (value === null || value === undefined) {
 		return ""

@@ -202,6 +202,24 @@ describe("extractTextFromXLSX", () => {
 			expect(result).toBe("--- Sheet: Sheet1 ---\n0\n0\nfalse")
 		})
 
+		it("should read every cell of a merged formula through the top-left cell", async () => {
+			const workbook = new ExcelJS.Workbook()
+			const worksheet = workbook.addWorksheet("Sheet1")
+
+			// The other cells of a merged range return the top-left cell's value, but not its result
+			worksheet.getCell("A1").value = { formula: "C1*2", result: 4 }
+			worksheet.mergeCells("A1:B1")
+			worksheet.getCell("A2").value = { formula: "C2*2", result: 0 }
+			worksheet.mergeCells("A2:B2")
+			worksheet.getCell("A3").value = { formula: "C3+30", result: new Date("2024-10-30T00:00:00.000Z") }
+			worksheet.getCell("A3").numFmt = "yyyy-mm-dd"
+			worksheet.mergeCells("A3:B3")
+
+			const result = await extractTextFromXLSX(workbook)
+
+			expect(result).toBe("--- Sheet: Sheet1 ---\n4\t4\n0\t0\n2024-10-30\t2024-10-30")
+		})
+
 		it("should read formula errors and dates like plain values", async () => {
 			const workbook = new ExcelJS.Workbook()
 			const worksheet = workbook.addWorksheet("Sheet1")
@@ -229,6 +247,8 @@ describe("extractTextFromXLSX", () => {
 				["1899-12-30T12:00:00.000Z", "[$-x-systime]h:mm:ss AM/PM", "12:00:00"],
 				["1899-12-30T18:00:00.000Z", 'h:mm" daily"', "18:00:00"],
 				["1899-12-31T12:00:00.000Z", "[h]:mm:ss", "36:00:00"],
+				["1899-12-31T12:00:30.000Z", "[h]:mm", "36:00"],
+				["1899-12-31T01:00:30.000Z", "[m]", "1500"],
 				["1899-12-31T01:00:30.000Z", "[mm]:ss", "1500:30"],
 				["1899-12-30T01:30:00.000Z", "[ss]", "5400"],
 				["2024-09-30T00:00:00.000Z", "mmmm", "2024-09-30"],
@@ -255,7 +275,7 @@ describe("extractTextFromXLSX", () => {
 
 			const result = await extractTextFromXLSX(workbook)
 
-			expect(result).toBe("--- Sheet: Sheet1 ---\n36:00:00")
+			expect(result).toBe("--- Sheet: Sheet1 ---\n36:00")
 		})
 	})
 
